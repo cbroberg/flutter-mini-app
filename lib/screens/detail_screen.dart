@@ -1,56 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/fruit_provider.dart';
-
-/// Helper function to get the color for a fruit based on its name
-Color _getFruitColor(String fruitName) {
-  switch (fruitName.toLowerCase()) {
-    case 'apple':
-      return Colors.red.shade500;
-    case 'banana':
-      return Colors.amber.shade400;
-    case 'orange':
-      return Colors.orange.shade500;
-    case 'strawberry':
-      return Colors.red.shade400;
-    case 'mango':
-      return Colors.orange.shade600;
-    case 'blueberry':
-      return Colors.blue.shade600;
-    default:
-      return Colors.grey.shade400;
-  }
-}
-
-/// Helper function to get the icon for a fruit based on its name
-IconData _getFruitIcon(String fruitName) {
-  switch (fruitName.toLowerCase()) {
-    case 'apple':
-      return Icons.apple;
-    case 'banana':
-      return Icons.emoji_food_beverage;
-    case 'orange':
-      return Icons.circle;
-    case 'strawberry':
-      return Icons.favorite;
-    case 'mango':
-      return Icons.circle;
-    case 'blueberry':
-      return Icons.circle;
-    default:
-      return Icons.lunch_dining;
-  }
-}
+import '../fruit_utils.dart';
 
 /// DetailScreen displays detailed information about a selected fruit.
 /// Shows the fruit image, full description, nutritional information,
 /// and other details retrieved from the Riverpod state.
 class DetailScreen extends ConsumerWidget {
-  const DetailScreen({Key? key}) : super(key: key);
+  final Fruit fruit;
+
+  const DetailScreen({super.key, required this.fruit});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // Watch the current fruit provider to get selected fruit details
+    final favoriteFruitIds = ref.watch(favoriteFruitsProvider);
+    final isFavorite = favoriteFruitIds.contains(fruit.id);
+
     final selectedFruit = ref.watch(currentFruitProvider);
 
     // If no fruit is selected, show a fallback screen
@@ -66,20 +32,39 @@ class DetailScreen extends ConsumerWidget {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(selectedFruit.name),
-        elevation: 0,
-      ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            /// Fruit image hero section
-            _FruitImageSection(fruit: selectedFruit),
-
-            /// Fruit details content
-            Padding(
-              padding: const EdgeInsets.all(20.0),
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar(
+            expandedHeight: 300.0,
+            pinned: true,
+            stretch: true,
+            backgroundColor: getFruitColor(selectedFruit.name),
+            flexibleSpace: FlexibleSpaceBar(
+              title: Text(
+                selectedFruit.name,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              centerTitle: true,
+              background: _FruitImageSection(fruit: selectedFruit),
+            ),
+            actions: [
+              IconButton(
+                icon: Icon(
+                  isFavorite ? Icons.favorite : Icons.favorite_border,
+                  color: isFavorite ? Colors.red.shade400 : Colors.white,
+                ),
+                onPressed: () {
+                  ref
+                      .read(favoriteFruitsProvider.notifier)
+                      .toggleFavorite(selectedFruit.id);
+                },
+                tooltip: 'Toggle Favorite',
+              ),
+            ],
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -88,20 +73,19 @@ class DetailScreen extends ConsumerWidget {
                   const SizedBox(height: 24),
 
                   /// Description section
-                  _SectionTitle(title: 'Description'),
+                  const _SectionTitle(title: 'Description'),
                   const SizedBox(height: 8),
                   Text(
                     selectedFruit.description,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      height: 1.6,
-                      color: Colors.grey,
-                    ),
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          height: 1.6,
+                          color: Colors.black54,
+                        ),
                   ),
                   const SizedBox(height: 24),
 
                   /// Nutritional information section
-                  _SectionTitle(title: 'Nutritional Information'),
+                  const _SectionTitle(title: 'Nutritional Information'),
                   const SizedBox(height: 8),
                   _InformationCard(
                     content: selectedFruit.nutritionalInfo,
@@ -109,36 +93,34 @@ class DetailScreen extends ConsumerWidget {
                   const SizedBox(height: 24),
 
                   /// Quick facts section
-                  _SectionTitle(title: 'Quick Facts'),
+                  const _SectionTitle(title: 'Quick Facts'),
                   const SizedBox(height: 12),
                   _QuickFactTile(label: 'Color', value: selectedFruit.color),
                   const SizedBox(height: 8),
-                  _QuickFactTile(label: 'Fruit ID', value: '#${selectedFruit.id}'),
+                  _QuickFactTile(
+                      label: 'Fruit ID', value: '#${selectedFruit.id}'),
                   const SizedBox(height: 32),
 
                   /// Action buttons
                   SizedBox(
                     width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                      },
-                      style: ElevatedButton.styleFrom(
+                    child: FilledButton.tonal(
+                      onPressed: () => Navigator.of(context).pop(),
+                      style: FilledButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        backgroundColor: Colors.blue,
-                        foregroundColor: Colors.white,
                       ),
                       child: const Text(
                         'Back to List',
-                        style: TextStyle(fontSize: 16),
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold),
                       ),
                     ),
                   ),
                 ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -152,51 +134,25 @@ class _FruitImageSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        /// Fruit colored background with icon (instead of network image)
-        /// This ensures the app works perfectly on web without CORS issues
-        Container(
-          width: double.infinity,
-          height: 300,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                _getFruitColor(fruit.name),
-                _getFruitColor(fruit.name).withValues(alpha: 0.7),
-              ],
-            ),
-          ),
-          child: Center(
-            child: Icon(
-              _getFruitIcon(fruit.name),
-              size: 120,
-              color: Colors.white.withValues(alpha: 0.9),
-            ),
+    return Hero(
+      tag: 'fruit-icon-${fruit.id}',
+      child: Container(
+        width: double.infinity,
+        height: 300,
+        decoration: BoxDecoration(
+          color: getFruitColor(fruit.name),
+        ),
+        child: Center(
+          child: Icon(
+            getFruitIcon(fruit.name),
+            size: 120,
+            color: Colors.white.withOpacity(0.9),
+            shadows: [
+              Shadow(color: Colors.black.withOpacity(0.2), blurRadius: 12)
+            ],
           ),
         ),
-        /// Gradient overlay at the bottom for better text readability
-        Positioned(
-          bottom: 0,
-          left: 0,
-          right: 0,
-          child: Container(
-            height: 80,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.transparent,
-                  Colors.black.withValues(alpha: 0.3),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
@@ -212,28 +168,26 @@ class _FruitHeader extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        /// Fruit name
-        Text(
-          fruit.name,
-          style: const TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        /// Color badge
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: Colors.blue.shade100,
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Text(
-            fruit.color,
-            style: TextStyle(
-              color: Colors.blue.shade700,
-              fontWeight: FontWeight.w600,
+        /// Fruit name (with Hero)
+        Hero(
+          tag: 'fruit-name-${fruit.id}',
+          child: Material(
+            color: Colors.transparent,
+            child: Text(
+              fruit.name,
+              style: Theme.of(context)
+                  .textTheme
+                  .headlineMedium
+                  ?.copyWith(fontWeight: FontWeight.bold),
             ),
           ),
+        ),
+
+        /// Color badge
+        Chip(
+          label: Text(fruit.color),
+          backgroundColor: Colors.blue.shade100,
+          side: BorderSide.none,
         ),
       ],
     );
@@ -250,10 +204,10 @@ class _SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       title,
-      style: const TextStyle(
-        fontSize: 20,
-        fontWeight: FontWeight.bold,
-      ),
+      style: Theme.of(context)
+          .textTheme
+          .titleLarge
+          ?.copyWith(fontWeight: FontWeight.bold),
     );
   }
 }
@@ -270,17 +224,15 @@ class _InformationCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
+        color: Colors.black.withOpacity(0.04),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
       ),
       child: Text(
         content,
-        style: const TextStyle(
-          fontSize: 14,
-          height: 1.6,
-          color: Colors.grey,
-        ),
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              height: 1.6,
+              color: Colors.black87,
+            ),
       ),
     );
   }
@@ -303,18 +255,17 @@ class _QuickFactTile extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 14,
-            color: Colors.grey,
-            fontWeight: FontWeight.w500,
-          ),
+          style: Theme.of(context)
+              .textTheme
+              .bodyMedium
+              ?.copyWith(color: Colors.black54),
         ),
         Text(
           value,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-          ),
+          style: Theme.of(context)
+              .textTheme
+              .bodyMedium
+              ?.copyWith(fontWeight: FontWeight.bold),
         ),
       ],
     );

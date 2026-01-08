@@ -16,28 +16,30 @@ void main() {
 /// Root widget of the application.
 /// Defines the app theme and navigation structure.
 class FruitApp extends StatelessWidget {
-  const FruitApp({Key? key}) : super(key: key);
+  const FruitApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Flutter Fruit App',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        // Use a beautiful blue color scheme as primary
-        primarySwatch: Colors.blue,
+      theme: ThemeData.from(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.blue,
+          brightness: Brightness.light,
+        ),
         useMaterial3: true,
-        appBarTheme: const AppBarTheme(
-          elevation: 0,
+      ).copyWith(
+        appBarTheme: AppBarTheme(
+          elevation: 0, // Keep it flat
           centerTitle: true,
-          backgroundColor: Colors.blue,
+          backgroundColor: Colors.blue.shade600,
           foregroundColor: Colors.white,
         ),
         cardTheme: CardThemeData(
-          elevation: 2,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+          elevation: 1,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       ),
       home: const HomeScreen(),

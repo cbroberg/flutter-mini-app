@@ -1,76 +1,195 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/fruit_provider.dart';
+import '../fruit_utils.dart';
 import 'detail_screen.dart';
-
-/// Helper function to get the color for a fruit based on its name
-Color _getFruitColor(String fruitName) {
-  switch (fruitName.toLowerCase()) {
-    case 'apple':
-      return Colors.red.shade500;
-    case 'banana':
-      return Colors.amber.shade400;
-    case 'orange':
-      return Colors.orange.shade500;
-    case 'strawberry':
-      return Colors.red.shade400;
-    case 'mango':
-      return Colors.orange.shade600;
-    case 'blueberry':
-      return Colors.blue.shade600;
-    default:
-      return Colors.grey.shade400;
-  }
-}
-
-/// Helper function to get the icon for a fruit based on its name
-IconData _getFruitIcon(String fruitName) {
-  switch (fruitName.toLowerCase()) {
-    case 'apple':
-      return Icons.apple;
-    case 'banana':
-      return Icons.emoji_food_beverage;
-    case 'orange':
-      return Icons.circle;
-    case 'strawberry':
-      return Icons.favorite;
-    case 'mango':
-      return Icons.circle;
-    case 'blueberry':
-      return Icons.circle;
-    default:
-      return Icons.lunch_dining;
-  }
-}
 
 /// HomeScreen displays a list of all available fruits.
 /// Users can tap on a fruit to navigate to the detail screen.
 /// Uses Riverpod to manage the list of fruits and selected fruit state.
-class HomeScreen extends ConsumerWidget {
-  const HomeScreen({Key? key}) : super(key: key);
+class HomeScreen extends ConsumerStatefulWidget {
+  const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  final GlobalKey<AnimatedListState> _listKey = GlobalKey<AnimatedListState>();
+  late List<Fruit> _filteredFruits;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _filteredFruits = _getFilteredAndSortedFruits();
+  }
+
+  List<Fruit> _getFilteredAndSortedFruits() {
     // Watch the fruit list provider to get all fruits
-    final fruits = ref.watch(fruitListProvider);
+    final allFruits = ref.watch(fruitListProvider);
+    // Watch the search query provider
+    final searchQuery = ref.watch(searchQueryProvider);
+    // Watch the favorite filter provider
+    final showFavoritesOnly = ref.watch(favoriteFilterProvider);
+    // Watch the favorite fruits provider
+    final favoriteFruitIds = ref.watch(favoriteFruitsProvider);
+    final hasFavorites = favoriteFruitIds.isNotEmpty;
+
+    // Filter fruits based on the search query and favorite filter
+    var filteredFruits = allFruits.where((fruit) {
+      final matchesSearch =
+          fruit.name.toLowerCase().contains(searchQuery.toLowerCase());
+      if (showFavoritesOnly) {
+        final isFavorite = favoriteFruitIds.contains(fruit.id);
+        return isFavorite && matchesSearch;
+      }
+      return matchesSearch;
+    }).toList();
+
+    // Sort the list to show favorites first, then alphabetically.
+    // This applies whether the favorite filter is on or off.
+    filteredFruits.sort((a, b) {
+      final isAFavorite = favoriteFruitIds.contains(a.id);
+      final isBFavorite = favoriteFruitIds.contains(b.id);
+
+      if (isAFavorite && !isBFavorite) {
+        return -1; // a (favorite) comes before b (not favorite)
+      } else if (!isAFavorite && isBFavorite) {
+        return 1; // b (favorite) comes after a (not favorite)
+      }
+      return a.name.compareTo(b.name); // Sort alphabetically otherwise
+    });
+    return filteredFruits;
+  }
+
+  void _updateList() {
+    final newFilteredFruits = _getFilteredAndSortedFruits();
+    // Find removed items
+    for (int i = _filteredFruits.length - 1; i >= 0; i--) {
+      if (!newFilteredFruits.contains(_filteredFruits[i])) {
+        final removedFruit = _filteredFruits[i];
+        _listKey.currentState?.removeItem(
+          i,
+          (context, animation) => _buildRemovedItem(removedFruit, animation),
+        );
+      }
+    }
+
+    // Find added items
+    for (int i = 0; i < newFilteredFruits.length; i++) {
+      if (!_filteredFruits.contains(newFilteredFruits[i])) {
+        _listKey.currentState?.insertItem(i);
+      }
+    }
+
+    _filteredFruits = newFilteredFruits;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Listen to providers to trigger list updates
+    ref.listen(searchQueryProvider, (_, __) => _updateList());
+    ref.listen(favoriteFilterProvider, (_, __) => _updateList());
+    ref.listen(favoriteFruitsProvider, (_, __) => _updateList());
+
+    final showFavoritesOnly = ref.watch(favoriteFilterProvider);
+    final hasFavorites = ref.watch(favoriteFruitsProvider).isNotEmpty;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Fruits Store'),
-        elevation: 0,
+        title: TextField(
+          onChanged: (query) {
+            ref.read(searchQueryProvider.notifier).setQuery(query);
+          },
+          decoration: InputDecoration(
+            hintText: 'Search for a fruit...',
+            border: InputBorder.none,
+            hintStyle: TextStyle(color: Colors.white.withOpacity(0.8)),
+          ),
+          style: const TextStyle(color: Colors.white, fontSize: 18),
+        ),
+        actions: [
+          IconButton(
+            icon: Icon(
+              showFavoritesOnly ? Icons.filter_list : Icons.filter_list_off,
+              color: Colors.white,
+            ),
+            tooltip: 'Show Favorites Only',
+            onPressed: () {
+              // Toggle the favorite filter
+              ref.read(favoriteFilterProvider.notifier).toggle();
+            },
+          ),
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == 'clear_favorites') {
+                // Show a confirmation dialog before clearing
+                showDialog(
+                  context: context,
+                  builder: (BuildContext dialogContext) {
+                    return AlertDialog(
+                      title: const Text('Clear All Favorites'),
+                      content: const Text(
+                          'Are you sure you want to remove all your favorite fruits?'),
+                      actions: <Widget>[
+                        TextButton(
+                          child: const Text('Cancel'),
+                          onPressed: () {
+                            Navigator.of(dialogContext)
+                                .pop(); // Close the dialog
+                          },
+                        ),
+                        TextButton(
+                          child: const Text('Clear'),
+                          onPressed: () {
+                            ref
+                                .read(favoriteFruitsProvider.notifier)
+                                .clearFavorites();
+                            Navigator.of(dialogContext)
+                                .pop(); // Close the dialog
+                          },
+                        ),
+                      ],
+                    );
+                  },
+                );
+              }
+            },
+            itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+              PopupMenuItem<String>(
+                value: 'clear_favorites',
+                enabled: hasFavorites,
+                child: const Text('Clear all favorites'),
+              ),
+            ],
+            icon: const Icon(Icons.more_vert, color: Colors.white),
+          ),
+        ],
       ),
-      body: fruits.isEmpty
-          ? const Center(
-              child: Text('No fruits available'),
-            )
-          : ListView.builder(
+      body: _filteredFruits.isEmpty
+          ? const Center(child: Text('No fruits found'))
+          : AnimatedList(
+              key: _listKey,
               padding: const EdgeInsets.all(8.0),
-              itemCount: fruits.length,
-              itemBuilder: (context, index) {
-                final fruit = fruits[index];
-                return FruitCard(fruit: fruit);
+              initialItemCount: _filteredFruits.length,
+              itemBuilder: (context, index, animation) {
+                final fruit = _filteredFruits[index];
+                return SizeTransition(
+                  sizeFactor: animation,
+                  child: FruitCard(fruit: fruit),
+                );
               },
             ),
+    );
+  }
+
+  Widget _buildRemovedItem(Fruit fruit, Animation<double> animation) {
+    return SizeTransition(
+      sizeFactor: animation,
+      child: Opacity(
+        opacity: 0.0,
+        child: FruitCard(fruit: fruit),
+      ),
     );
   }
 }
@@ -82,22 +201,28 @@ class FruitCard extends ConsumerWidget {
   final Fruit fruit;
 
   const FruitCard({
-    Key? key,
+    super.key,
     required this.fruit,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Watch the favorite fruits provider to check if this fruit is a favorite
+    final favoriteFruitIds = ref.watch(favoriteFruitsProvider);
+    final isFavorite = favoriteFruitIds.contains(fruit.id);
+
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 0),
       child: InkWell(
         onTap: () {
           // Update the selected fruit in state
-          ref.read(selectedFruitProvider.notifier).state = fruit;
+          ref.read(selectedFruitProvider.notifier).setSelected(fruit);
           // Navigate to the detail screen
           Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (context) => const DetailScreen(),
+              builder: (context) => DetailScreen(
+                fruit: fruit,
+              ),
             ),
           );
         },
@@ -107,41 +232,43 @@ class FruitCard extends ConsumerWidget {
             children: [
               /// Fruit icon with a colored background (instead of network image)
               /// This ensures the app works perfectly on web without CORS issues
-              Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  color: _getFruitColor(fruit.name),
-                  borderRadius: BorderRadius.circular(8),
-                  boxShadow: [
-                    BoxShadow(
-                      color: _getFruitColor(fruit.name).withValues(alpha: 0.4),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Icon(
-                  _getFruitIcon(fruit.name),
-                  size: 48,
-                  color: Colors.white,
+              Hero(
+                tag: 'fruit-icon-${fruit.id}',
+                child: Container(
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    color: getFruitColor(fruit.name),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    getFruitIcon(fruit.name),
+                    size: 48,
+                    color: Colors.white,
+                  ),
                 ),
               ),
               const SizedBox(width: 16),
+
               /// Fruit information section
               Expanded(
                 child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     /// Fruit name
-                    Text(
-                      fruit.name,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                    Hero(
+                      tag: 'fruit-name-${fruit.id}',
+                      child: Material(
+                        color: Colors.transparent,
+                        child: Text(
+                          fruit.name,
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 8),
+
                     /// Fruit description (truncated)
                     Text(
                       fruit.description,
@@ -153,33 +280,31 @@ class FruitCard extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(height: 8),
+
                     /// Color tag
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.shade100,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        fruit.color,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.blue,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
+                    Chip(
+                      label: Text(fruit.color),
+                      labelStyle: TextStyle(color: Colors.blue.shade800),
+                      backgroundColor: Colors.blue.shade100,
+                      side: BorderSide.none,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
                     ),
                   ],
                 ),
               ),
-              /// Arrow icon indicating navigation
-              Icon(
-                Icons.arrow_forward_ios,
-                color: Colors.blue.shade600,
-                size: 16,
+
+              /// Favorite button
+              IconButton(
+                icon: Icon(
+                  isFavorite ? Icons.favorite : Icons.favorite_border,
+                  color: isFavorite ? Colors.red : Colors.grey,
+                ),
+                onPressed: () {
+                  // Toggle the favorite status
+                  ref
+                      .read(favoriteFruitsProvider.notifier)
+                      .toggleFavorite(fruit.id);
+                },
               ),
             ],
           ),

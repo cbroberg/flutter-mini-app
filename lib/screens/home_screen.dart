@@ -3,6 +3,46 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/fruit_provider.dart';
 import 'detail_screen.dart';
 
+/// Helper function to get the color for a fruit based on its name
+Color _getFruitColor(String fruitName) {
+  switch (fruitName.toLowerCase()) {
+    case 'apple':
+      return Colors.red.shade500;
+    case 'banana':
+      return Colors.amber.shade400;
+    case 'orange':
+      return Colors.orange.shade500;
+    case 'strawberry':
+      return Colors.red.shade400;
+    case 'mango':
+      return Colors.orange.shade600;
+    case 'blueberry':
+      return Colors.blue.shade600;
+    default:
+      return Colors.grey.shade400;
+  }
+}
+
+/// Helper function to get the icon for a fruit based on its name
+IconData _getFruitIcon(String fruitName) {
+  switch (fruitName.toLowerCase()) {
+    case 'apple':
+      return Icons.apple;
+    case 'banana':
+      return Icons.emoji_food_beverage;
+    case 'orange':
+      return Icons.circle;
+    case 'strawberry':
+      return Icons.favorite;
+    case 'mango':
+      return Icons.circle;
+    case 'blueberry':
+      return Icons.circle;
+    default:
+      return Icons.lunch_dining;
+  }
+}
+
 /// HomeScreen displays a list of all available fruits.
 /// Users can tap on a fruit to navigate to the detail screen.
 /// Uses Riverpod to manage the list of fruits and selected fruit state.
@@ -65,25 +105,26 @@ class FruitCard extends ConsumerWidget {
           padding: const EdgeInsets.all(12.0),
           child: Row(
             children: [
-              /// Fruit image with a rounded container
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.network(
-                  fruit.imageUrl,
-                  width: 100,
-                  height: 100,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      width: 100,
-                      height: 100,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[300],
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(Icons.image_not_supported),
-                    );
-                  },
+              /// Fruit icon with a colored background (instead of network image)
+              /// This ensures the app works perfectly on web without CORS issues
+              Container(
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  color: _getFruitColor(fruit.name),
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: [
+                    BoxShadow(
+                      color: _getFruitColor(fruit.name).withValues(alpha: 0.4),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  _getFruitIcon(fruit.name),
+                  size: 48,
+                  color: Colors.white,
                 ),
               ),
               const SizedBox(width: 16),

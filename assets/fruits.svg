@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 100">
+  <!-- Apple -->
+  <circle cx="50" cy="50" r="40" fill="#DC143C"/>
+  <ellipse cx="50" cy="25" rx="8" ry="12" fill="#228B22"/>
+
+  <!-- Banana -->
+  <path d="M 150 20 Q 170 30 170 50 Q 170 70 150 80" stroke="#FFD700" stroke-width="25" fill="none" stroke-linecap="round"/>
+
+  <!-- Orange -->
+  <circle cx="250" cy="50" r="40" fill="#FF8C00"/>
+  <circle cx="250" cy="50" r="35" fill="#FFA500"/>
+
+  <!-- Strawberry -->
+  <path d="M 350 60 L 330 40 L 350 20 L 370 40 Z" fill="#FF69B4"/>
+  <circle cx="350" cy="50" r="25" fill="#DC143C"/>
+
+  <!-- Mango -->
+  <path d="M 450 30 Q 470 40 470 60 Q 470 75 450 80 Q 430 75 430 60 Q 430 40 450 30 Z" fill="#FFD700"/>
+  <ellipse cx="450" cy="55" rx="15" ry="20" fill="#FFA500" opacity="0.5"/>
+</svg>

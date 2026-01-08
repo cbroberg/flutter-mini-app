@@ -2,6 +2,46 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/fruit_provider.dart';
 
+/// Helper function to get the color for a fruit based on its name
+Color _getFruitColor(String fruitName) {
+  switch (fruitName.toLowerCase()) {
+    case 'apple':
+      return Colors.red.shade500;
+    case 'banana':
+      return Colors.amber.shade400;
+    case 'orange':
+      return Colors.orange.shade500;
+    case 'strawberry':
+      return Colors.red.shade400;
+    case 'mango':
+      return Colors.orange.shade600;
+    case 'blueberry':
+      return Colors.blue.shade600;
+    default:
+      return Colors.grey.shade400;
+  }
+}
+
+/// Helper function to get the icon for a fruit based on its name
+IconData _getFruitIcon(String fruitName) {
+  switch (fruitName.toLowerCase()) {
+    case 'apple':
+      return Icons.apple;
+    case 'banana':
+      return Icons.emoji_food_beverage;
+    case 'orange':
+      return Icons.circle;
+    case 'strawberry':
+      return Icons.favorite;
+    case 'mango':
+      return Icons.circle;
+    case 'blueberry':
+      return Icons.circle;
+    default:
+      return Icons.lunch_dining;
+  }
+}
+
 /// DetailScreen displays detailed information about a selected fruit.
 /// Shows the fruit image, full description, nutritional information,
 /// and other details retrieved from the Riverpod state.
@@ -114,20 +154,28 @@ class _FruitImageSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        /// Fruit image
-        Image.network(
-          fruit.imageUrl,
+        /// Fruit colored background with icon (instead of network image)
+        /// This ensures the app works perfectly on web without CORS issues
+        Container(
           width: double.infinity,
           height: 300,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return Container(
-              width: double.infinity,
-              height: 300,
-              color: Colors.grey[300],
-              child: const Icon(Icons.image_not_supported, size: 64),
-            );
-          },
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                _getFruitColor(fruit.name),
+                _getFruitColor(fruit.name).withValues(alpha: 0.7),
+              ],
+            ),
+          ),
+          child: Center(
+            child: Icon(
+              _getFruitIcon(fruit.name),
+              size: 120,
+              color: Colors.white.withValues(alpha: 0.9),
+            ),
+          ),
         ),
         /// Gradient overlay at the bottom for better text readability
         Positioned(
@@ -142,7 +190,7 @@ class _FruitImageSection extends StatelessWidget {
                 end: Alignment.bottomCenter,
                 colors: [
                   Colors.transparent,
-                  Colors.black.withOpacity(0.3),
+                  Colors.black.withValues(alpha: 0.3),
                 ],
               ),
             ),

@@ -112,9 +112,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   /// Handle keyboard input for navigation and actions.
   /// Only works on Web and macOS platforms.
-  void _handleKeyEvent(KeyEvent event) {
+  /// Returns KeyEventResult.handled if the event was consumed.
+  KeyEventResult _handleKeyEvent(KeyEvent event) {
     // Only enable keyboard shortcuts on Web and macOS
-    if (!_isKeyboardPlatform()) return;
+    if (!_isKeyboardPlatform()) return KeyEventResult.ignored;
 
     if (event is KeyDownEvent) {
       if (event.logicalKey == LogicalKeyboardKey.enter) {
@@ -126,15 +127,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           Navigator.of(context).push(
             MaterialPageRoute(builder: (context) => DetailScreen(fruit: fruit)),
           );
+          return KeyEventResult.handled;
         }
       } else if (event.logicalKey == LogicalKeyboardKey.space) {
-        // SPACE: Toggle favorite for focused fruit
+        // SPACE: Toggle favorite for focused fruit (don't open details)
         if (_filteredFruits.isNotEmpty &&
             _focusedFruitIndex < _filteredFruits.length) {
           final fruit = _filteredFruits[_focusedFruitIndex];
           ref
               .read(favoriteFruitsProvider.notifier)
               .toggleFavorite(fruit.id);
+          // Important: Return handled to prevent default space behavior
+          return KeyEventResult.handled;
         }
       } else if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
         // Arrow Up: Move focus to previous fruit
@@ -143,6 +147,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             _focusedFruitIndex--;
           }
         });
+        return KeyEventResult.handled;
       } else if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
         // Arrow Down: Move focus to next fruit
         setState(() {
@@ -150,8 +155,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             _focusedFruitIndex++;
           }
         });
+        return KeyEventResult.handled;
       }
     }
+    return KeyEventResult.ignored;
   }
 
   /// Check if the current platform supports keyboard input.
@@ -184,7 +191,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           decoration: InputDecoration(
             hintText: 'Search for a fruit...',
             border: InputBorder.none,
-            hintStyle: TextStyle(color: Colors.white.withOpacity(0.8)),
+            hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.8)),
           ),
           style: const TextStyle(color: Colors.white, fontSize: 18),
         ),

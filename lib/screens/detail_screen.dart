@@ -1,4 +1,8 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/fruit_provider.dart';
 import '../fruit_utils.dart';
@@ -6,16 +10,59 @@ import '../fruit_utils.dart';
 /// DetailScreen displays detailed information about a selected fruit.
 /// Shows the fruit image, full description, nutritional information,
 /// and other details retrieved from the Riverpod state.
-class DetailScreen extends ConsumerWidget {
+///
+/// Keyboard support: Press ESC to return to the list (Web & macOS only).
+class DetailScreen extends ConsumerStatefulWidget {
   final Fruit fruit;
 
   const DetailScreen({super.key, required this.fruit});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DetailScreen> createState() => _DetailScreenState();
+}
+
+class _DetailScreenState extends ConsumerState<DetailScreen> {
+  late FocusNode _focusNode;
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode = FocusNode();
+    // Request focus so keyboard events are captured
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _focusNode.requestFocus();
+    });
+  }
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  /// Handle keyboard input (ESC key) to go back to list.
+  /// Only works on Web and macOS platforms.
+  void _handleKeyEvent(KeyEvent event) {
+    // Only enable keyboard shortcuts on Web and macOS (platforms with keyboards)
+    if (!_isKeyboardPlatform()) return;
+
+    if (event is KeyDownEvent &&
+        event.logicalKey == LogicalKeyboardKey.escape) {
+      Navigator.of(context).pop();
+    }
+  }
+
+  /// Check if the current platform supports keyboard input.
+  /// Returns true for Web and macOS, false for iOS and Android.
+  bool _isKeyboardPlatform() {
+    return kIsWeb || (!Platform.isIOS && !Platform.isAndroid);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     // Watch the current fruit provider to get selected fruit details
     final favoriteFruitIds = ref.watch(favoriteFruitsProvider);
-    final isFavorite = favoriteFruitIds.contains(fruit.id);
+    final isFavorite = favoriteFruitIds.contains(widget.fruit.id);
 
     final selectedFruit = ref.watch(currentFruitProvider);
 
@@ -31,6 +78,19 @@ class DetailScreen extends ConsumerWidget {
       );
     }
 
+    return KeyboardListener(
+      focusNode: _focusNode,
+      onKeyEvent: _handleKeyEvent,
+      child: _buildScaffold(context, selectedFruit, isFavorite),
+    );
+  }
+
+  /// Build the main scaffold widget.
+  Widget _buildScaffold(
+    BuildContext context,
+    Fruit selectedFruit,
+    bool isFavorite,
+  ) {
     return Scaffold(
       body: CustomScrollView(
         slivers: [

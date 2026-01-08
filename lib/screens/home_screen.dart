@@ -113,7 +113,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   /// Handle keyboard input for navigation and actions.
   /// Only works on Web and macOS platforms.
   /// Returns KeyEventResult.handled if the event was consumed.
-  KeyEventResult _handleKeyEvent(KeyEvent event) {
+  KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
     // Only enable keyboard shortcuts on Web and macOS
     if (!_isKeyboardPlatform()) return KeyEventResult.ignored;
 
@@ -137,7 +137,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ref
               .read(favoriteFruitsProvider.notifier)
               .toggleFavorite(fruit.id);
-          // Important: Return handled to prevent default space behavior
+          // Important: Return handled to prevent default space behavior (scrolling)
           return KeyEventResult.handled;
         }
       } else if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
@@ -179,7 +179,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final showFavoritesOnly = ref.watch(favoriteFilterProvider);
     final hasFavorites = ref.watch(favoriteFruitsProvider).isNotEmpty;
 
-    return KeyboardListener(
+    return Focus(
       focusNode: _focusNode,
       onKeyEvent: _handleKeyEvent,
       child: Scaffold(

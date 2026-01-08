@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -42,20 +40,25 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
 
   /// Handle keyboard input (ESC key) to go back to list.
   /// Only works on Web and macOS platforms.
-  void _handleKeyEvent(KeyEvent event) {
+  /// Returns KeyEventResult.handled if ESC was pressed.
+  KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
     // Only enable keyboard shortcuts on Web and macOS (platforms with keyboards)
-    if (!_isKeyboardPlatform()) return;
+    if (!_isKeyboardPlatform()) return KeyEventResult.ignored;
 
     if (event is KeyDownEvent &&
         event.logicalKey == LogicalKeyboardKey.escape) {
       Navigator.of(context).pop();
+      return KeyEventResult.handled;
     }
+    return KeyEventResult.ignored;
   }
 
   /// Check if the current platform supports keyboard input.
   /// Returns true for Web and macOS, false for iOS and Android.
   bool _isKeyboardPlatform() {
-    return kIsWeb || (!Platform.isIOS && !Platform.isAndroid);
+    return kIsWeb ||
+        (defaultTargetPlatform != TargetPlatform.iOS &&
+            defaultTargetPlatform != TargetPlatform.android);
   }
 
   @override
@@ -78,7 +81,7 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
       );
     }
 
-    return KeyboardListener(
+    return Focus(
       focusNode: _focusNode,
       onKeyEvent: _handleKeyEvent,
       child: _buildScaffold(context, selectedFruit, isFavorite),
